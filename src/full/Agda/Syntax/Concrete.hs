@@ -291,6 +291,8 @@ data OpenShortHand = DoOpen | DontOpen
 
 data Pragma = OptionsPragma     !Range [String]
 	    | BuiltinPragma     !Range String Expr
+            | ExportDataPragma !Range QName String [String]
+            | ExportPragma    !Range QName String
             | CompiledDataPragma !Range QName String [String]
             | CompiledTypePragma !Range QName String
             | CompiledPragma    !Range QName String
@@ -488,6 +490,8 @@ instance HasRange RHS where
 instance HasRange Pragma where
     getRange (OptionsPragma r _)          = r
     getRange (BuiltinPragma r _ _)        = r
+    getRange (ExportDataPragma r _ _ _)   = r
+    getRange (ExportPragma r _ _)         = r
     getRange (CompiledDataPragma r _ _ _) = r
     getRange (CompiledTypePragma r _ _)   = r
     getRange (CompiledPragma r _ _)       = r
@@ -632,6 +636,8 @@ instance KillRange Pattern where
 instance KillRange Pragma where
   killRange (OptionsPragma _ s)           = OptionsPragma noRange s
   killRange (BuiltinPragma _ s e)         = killRange1 (BuiltinPragma noRange s) e
+  killRange (ExportDataPragma _ q s ss)   = killRange1 (\q -> ExportDataPragma noRange q s ss) q
+  killRange (ExportPragma _ q s)          = killRange1 (\q -> ExportPragma noRange q s) q
   killRange (CompiledDataPragma _ q s ss) = killRange1 (\q -> CompiledDataPragma noRange q s ss) q
   killRange (CompiledTypePragma _ q s)    = killRange1 (\q -> CompiledTypePragma noRange q s) q
   killRange (CompiledPragma _ q s)        = killRange1 (\q -> CompiledPragma noRange q s) q

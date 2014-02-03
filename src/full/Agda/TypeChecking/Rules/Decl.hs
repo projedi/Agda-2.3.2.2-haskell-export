@@ -276,12 +276,51 @@ checkPrimitive i x e =
     where
 	nameString (Name _ x _ _) = show x
 
+assertSameModule :: Definition -> String -> TCM ()
+assertSameModule def name = do
+   m <- currentModule
+   unless (m == (qnameModule $ defName def)) $ typeError $ GenericError $
+      name ++ " must be in the same module to the corresponding definition"
+
+assertConstructorCount :: QName -> Int -> [String] -> TCM ()
+assertConstructorCount x count hcs
+ | count == length hcs = return ()
+ | otherwise = do
+   let n_forms_are = case length hcs of
+                      1 -> "1 compiled form is"
+                      n -> show n ++ " compiled forms are"
+       only | null hcs               = ""
+            | length hcs < count = "only "
+            | otherwise              = ""
+   err <- fsep $ [prettyTCM x] ++ pwords ("has " ++ show count ++
+      " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords hcs ++ "]")
+   typeError $ GenericError $ show err
 
 -- | Check a pragma.
 checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
     traceCall (CheckPragma r p) $ case p of
 	A.BuiltinPragma x e -> bindBuiltin x e
+        A.ExportPragma x hs -> do
+          def <- getConstInfo x
+          assertSameModule def "EXPORT"
+          let isExportable = case theDef def of
+                              Function{} -> True
+                              Datatype{} -> True
+                              Record{} -> True
+                              -- will be exported as a function(no pattern matching)
+                              Constructor{} -> True
+                              _ -> False
+          if isExportable then addExportedHaskell x hs else typeError $ GenericError
+             "EXPORT can only be applied to data, record, functions and separate constructors"
+        A.ExportDataPragma x hs hcs -> do
+          def <- getConstInfo x
+          assertSameModule def "EXPORT_DATA"
+          case theDef def of
+            Datatype{dataCons = cs} -> do
+              assertConstructorCount x (length cs) hcs
+              addExportedHaskellData x hs hcs
+            _ -> typeError $ GenericError "EXPORT_DATA can only be applied to data"
         A.CompiledTypePragma x hs -> do
           def <- getConstInfo x
           case theDef def of

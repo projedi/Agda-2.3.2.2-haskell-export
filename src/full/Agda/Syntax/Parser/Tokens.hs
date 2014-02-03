@@ -19,6 +19,7 @@ data Keyword
         | KwInductive | KwCoInductive
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
 	| KwOPTIONS | KwBUILTIN | KwLINE
+	| KwEXPORT_DATA | KwEXPORT
 	| KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EPIC | KwCOMPILED_JS
 	| KwIMPORT | KwIMPOSSIBLE | KwETA | KwNO_TERMINATION_CHECK | KwSTATIC
 	| KwQuoteGoal | KwQuote | KwQuoteTerm | KwUnquote | KwSyntax | KwPatternSyn

@@ -20,12 +20,23 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Substitute(TelV(..), telToList)
+import Agda.TypeChecking.Telescope(telView)
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 #include "../../undefined.h"
+
+-- | Move somewhere else!
+conArityAndPars :: QName -> TCM (Nat, Nat)
+conArityAndPars q = do
+  def <- getConstInfo q
+  TelV tel _ <- telView $ defType def
+  let Constructor{ conPars = np } = theDef def
+      n = genericLength (telToList tel)
+  return (n - np, np)
 
 --------------------------------------------------
 -- Setting up Interface before compile

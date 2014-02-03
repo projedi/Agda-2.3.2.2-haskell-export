@@ -536,6 +536,11 @@ type HaskellType = String
 type EpicCode    = String
 type JSCode      = JS.Exp
 
+data ExportedHaskell
+      = Exported String
+      | ExportedData String [String]
+      deriving (Typeable, Show)
+
 data HaskellRepresentation
       = HsDefn HaskellType HaskellCode
       | HsType HaskellType
@@ -553,11 +558,12 @@ data CompiledRepresentation = CompiledRep
   { compiledHaskell :: Maybe HaskellRepresentation
   , compiledEpic    :: Maybe EpicCode
   , compiledJS      :: Maybe JSCode
+  , exportedHaskell :: Maybe ExportedHaskell
   }
   deriving (Typeable, Show)
 
 noCompiledRep :: CompiledRepresentation
-noCompiledRep = CompiledRep Nothing Nothing Nothing
+noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing
 
 -- | Subterm occurrences for positivity checking.
 --   The constructors are listed in increasing information they provide:

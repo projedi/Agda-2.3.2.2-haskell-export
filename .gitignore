@@ -2,3 +2,7 @@ dist/
 *.swp
 .cabal-sandbox/
 cabal.sandbox.config
+cabal-dev/
+*.agdai
+test/ffi/Main
+test/ffi/MAlonzo

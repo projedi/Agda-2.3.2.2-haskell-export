@@ -18,6 +18,7 @@ import System.Directory (createDirectoryIfMissing)
 import System.FilePath hiding (normalise)
 
 import Agda.Compiler.CallCompiler
+import qualified Agda.Compiler.MAlonzo.Export as Export
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
@@ -130,9 +131,10 @@ definition kit (Defn UnusedArg  _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 definition kit (Defn NonStrict  _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
 definition kit (Defn Irrelevant _ _  _ _ _ _ _ _) = return []
-definition kit (Defn _          q ty _ _ _ _ compiled d) = do
+definition kit defn@(Defn _     q ty _ _ _ _ compiled d) = do
   checkTypeOfMain q ty $ do
-  (infodecl q :) <$> case d of
+  exports <- Export.export kit defn
+  ((exports ++) . (infodecl q :)) <$> case d of
 
     _ | Just (HsDefn ty hs) <- compiledHaskell compiled ->
       return $ fbWithType ty (fakeExp hs)
@@ -238,15 +240,6 @@ checkCover q ty n cs = do
          , HS.FunBind [HS.Match dummy (unqhname "cover" q) [HS.PVar $ HS.Ident "x"]
                                 Nothing (HS.UnGuardedRhs rhs) (HS.BDecls [])]
          ]
-
--- | Move somewhere else!
-conArityAndPars :: QName -> TCM (Nat, Nat)
-conArityAndPars q = do
-  def <- getConstInfo q
-  TelV tel _ <- telView $ defType def
-  let Constructor{ conPars = np } = theDef def
-      n = genericLength (telToList tel)
-  return (n - np, np)
 
 clause :: QName -> (Nat, Bool, Clause) -> TCM HS.Decl
 clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =

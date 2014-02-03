@@ -806,6 +806,14 @@ instance EmbPrj HaskellRepresentation where
     valu [a, b] = valu2 HsDefn a b
     valu _      = malformed
 
+instance EmbPrj ExportedHaskell where
+  icode (ExportedData a b) = icode2 0 a b
+  icode (Exported a) = icode1 1 a
+  value = vcase valu
+   where valu [0, a, b] = valu2 ExportedData a b
+         valu [1, a] = valu1 Exported a
+         valu _ = malformed
+
 instance EmbPrj JS.Exp where
   icode (JS.Self)         = icode0 0
   icode (JS.Local i)      = icode1 1 i
@@ -884,9 +892,9 @@ instance EmbPrj Occurrence where
     valu _   = malformed
 
 instance EmbPrj CompiledRepresentation where
-  icode (CompiledRep a b c) = icode3' a b c
-  value = vcase valu where valu [a, b, c] = valu3 CompiledRep a b c
-                           valu _         = malformed
+  icode (CompiledRep a b c d) = icode4' a b c d
+  value = vcase valu where valu [a, b, c, d] = valu4 CompiledRep a b c d
+                           valu _            = malformed
 
 instance EmbPrj Defn where
   icode Axiom                                   = icode0 0

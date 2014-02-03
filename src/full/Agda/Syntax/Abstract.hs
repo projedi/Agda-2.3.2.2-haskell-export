@@ -109,6 +109,8 @@ data ModuleApplication = SectionApp [TypedBindings] ModuleName [NamedArg Expr]
 
 data Pragma = OptionsPragma [String]
 	    | BuiltinPragma String Expr
+            | ExportPragma QName String
+            | ExportDataPragma QName String [String]
             | CompiledPragma QName String
             | CompiledTypePragma QName String
             | CompiledDataPragma QName String [String]

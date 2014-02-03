@@ -102,6 +102,8 @@ import Agda.Utils.Tuple
     'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $$ }
     'ETA'           { TokKeyword KwETA $$ }
     'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $$ }
+    'EXPORT'        { TokKeyword KwEXPORT $$ }
+    'EXPORT_DATA'   { TokKeyword KwEXPORT_DATA $$ }
     'COMPILED'      { TokKeyword KwCOMPILED $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
     'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
@@ -202,6 +204,8 @@ Token
     | 'OPTIONS'	    { TokKeyword KwOPTIONS $1 }
     | 'BUILTIN'     { TokKeyword KwBUILTIN $1 }
     | 'IMPORT'      { TokKeyword KwIMPORT $1 }
+    | 'EXPORT'    { TokKeyword KwEXPORT $1 }
+    | 'EXPORT_DATA'{ TokKeyword KwEXPORT_DATA $1 }
     | 'COMPILED'    { TokKeyword KwCOMPILED $1 }
     | 'COMPILED_DATA'{ TokKeyword KwCOMPILED_DATA $1 }
     | 'COMPILED_TYPE'{ TokKeyword KwCOMPILED_TYPE $1 }
@@ -1174,6 +1178,8 @@ TopLevelPragma
 DeclarationPragma :: { Pragma }
 DeclarationPragma
   : BuiltinPragma            { $1 }
+  | ExportPragma             { $1 }
+  | ExportDataPragma         { $1 }
   | CompiledPragma           { $1 }
   | CompiledDataPragma       { $1 }
   | CompiledTypePragma       { $1 }
@@ -1192,6 +1198,16 @@ BuiltinPragma :: { Pragma }
 BuiltinPragma
     : '{-#' 'BUILTIN' string PragmaName '#-}'
       { BuiltinPragma (getRange ($1,$2,fst $3,$4,$5)) (snd $3) (Ident $4) }
+
+ExportPragma :: { Pragma }
+ExportPragma
+  : '{-#' 'EXPORT' PragmaName PragmaStrings '#-}'
+    { ExportPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
+
+ExportDataPragma :: { Pragma }
+ExportDataPragma
+  : '{-#' 'EXPORT_DATA' PragmaName string PragmaStrings '#-}'
+    { ExportDataPragma (getRange ($1,$2,$3,fst $4,$6)) $3 (snd $4) $5 }
 
 CompiledPragma :: { Pragma }
 CompiledPragma

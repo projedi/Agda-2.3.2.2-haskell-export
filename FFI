@@ -1,0 +1,15 @@
+Extracting terms:
+{-# EXTRACT agda-name haskell-name #-}
+haskell-type is inferred
+It should also be able to extract constructors but doesn't right now.
+
+Extracting opaque types:
+{-# EXTRACT agda-type haskell-type #-}
+newtype haskell-type a0 a1 a2 = haskell-type (forall b0 b1. agda-type-in-compiler b0 b1)
+
+Extracting datatypes:
+{-# EXTRACT_DATA agda-type haskell-type haskell-cons1 haskell-cons2 ... #-}
+Does not function yet.
+
+As of now all types must not be dependent. In the future this might change by using some
+more advanced haskell features
