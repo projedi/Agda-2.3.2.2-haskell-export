@@ -1,0 +1,8 @@
+PragmasApplyOnlyToCurrentModule.agda:5,8-30
+Termination checking failed for the following functions:
+  Foo
+Problematic calls:
+  Foo
+    (at Imports/NonTerminating.agda:4,7-10)
+when scope checking the declaration
+  import Imports.NonTerminating

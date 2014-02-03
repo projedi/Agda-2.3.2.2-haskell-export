@@ -1,0 +1,3 @@
+SplitOnIrrelevant.agda:10,1-11,17
+Cannot split on argument of irrelevant datatype Bool
+when checking the definition of not

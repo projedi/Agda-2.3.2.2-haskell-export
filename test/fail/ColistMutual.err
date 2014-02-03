@@ -1,0 +1,8 @@
+
+Termination checking failed for the following functions:
+  bad
+Problematic calls:
+  bads
+    (at ColistMutual.agda:32,25-29)
+  bad
+    (at ColistMutual.agda:35,14-17)

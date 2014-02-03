@@ -1,0 +1,6 @@
+
+Termination checking failed for the following functions:
+  consume
+Problematic calls:
+  consume xs
+    (at DataRecordCoinductive.agda:35,29-36)

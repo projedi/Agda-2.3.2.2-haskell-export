@@ -1,0 +1,11 @@
+WithoutK3.agda:25,9-13
+The variables
+  A
+which are used (perhaps as constructor parameters) in the index
+expressions
+  {A}
+  y
+are free in the parameters
+  {A}
+  x
+when checking that the pattern refl has type _≅_ {A} x {A} y
