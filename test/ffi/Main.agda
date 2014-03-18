@@ -1,6 +1,7 @@
 module Main where
 
 import Vec
+import Param
 
 data Unit : Set where
   unit : Unit
