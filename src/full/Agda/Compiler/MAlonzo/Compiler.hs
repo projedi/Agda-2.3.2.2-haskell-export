@@ -72,7 +72,9 @@ compile :: Interface -> TCM ()
 compile i = do
   setInterface i
   ifM uptodate noComp $ (yesComp >>) $ do
+    Export.initExportModule
     writeModule =<< decl <$> curHsMod <*> (definitions =<< curDefs) <*> imports
+    maybe (return ()) writeModule =<< Export.getExportModule
   where
   decl mn ds imp = HS.Module dummy mn [] Nothing Nothing imp ds
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
@@ -133,8 +135,8 @@ definition kit (Defn NonStrict  _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 definition kit (Defn Irrelevant _ _  _ _ _ _ _ _) = return []
 definition kit defn@(Defn _     q ty _ _ _ _ compiled d) = do
   checkTypeOfMain q ty $ do
-  exports <- Export.export kit defn
-  ((exports ++) . (infodecl q :)) <$> case d of
+  Export.addExport kit defn
+  (infodecl q :) <$> case d of
 
     _ | Just (HsDefn ty hs) <- compiledHaskell compiled ->
       return $ fbWithType ty (fakeExp hs)

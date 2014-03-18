@@ -24,6 +24,8 @@ import Data.Traversable
 import Data.IORef
 import Data.Hashable
 
+import qualified Language.Haskell.Exts.Syntax as HS
+
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Definitions as D
@@ -104,6 +106,7 @@ data TCState =
            -- ^ Callback fuction to call when there is a response
            --   to give to the interactive frontend.
            --   See the documentation of 'InteractionOutputCallback'.
+         , stExportModule :: Maybe HS.Module
 	 }
 
 -- | A part of the state which is not reverted when an error is thrown
@@ -160,6 +163,7 @@ initState =
 	   , stDecodedModules    = Map.empty
            }
          , stInteractionOutputCallback = defaultInteractionOutputCallback
+         , stExportModule = Nothing
 	 }
 
 stBuiltinThings :: TCState -> BuiltinThings PrimFun

@@ -47,6 +47,8 @@ exportNewtypeFromData pars ixs constrs ty name wantedName = do
  where tyvars = map (HS.Ident . ('a':) . show) $ take tyvarcount [0..]
        extycons = HS.TyCon $ HS.UnQual name
        tyvarcount = pars + ixs
+       -- TODO: assertType and assertParamType look deceptively like some
+       -- TODO: Foldable operation
        assertType (El _ (Sort s)) = do
          assertSort 0 s
          return []
