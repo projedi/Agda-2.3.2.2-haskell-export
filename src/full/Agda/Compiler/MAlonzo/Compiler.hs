@@ -440,6 +440,7 @@ writeModule (HS.Module l m ps w ex imp ds) = do
         , "ScopedTypeVariables"
         , "NoMonomorphismRestriction"
         , "Rank2Types"
+        , "KindSignatures"
         ]
 
 rteModule :: HS.Module

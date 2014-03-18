@@ -91,3 +91,19 @@ record Sigma (A : Set) (B : A -> Set) : Set where
       proj2 : B proj1
    swap : Sigma (B proj1) (\ _ -> A)
    swap = record { proj1 = proj2 ; proj2 = proj1 }
+
+record Simple (A : Set) : Set where
+   constructor simple
+   field
+      whyamihere : A
+
+{-# EXPORT Simple Simple #-}
+
+vec-map : {A B : Set} {n : Nat} -> (A -> B) -> Vec A n -> Vec B n
+vec-map f [] = []
+vec-map f (x ∷ xs) = f x ∷ vec-map f xs
+
+data HOKinds (A : (Set → Set) → Set → Set) : (Set → Set) → Set where
+  cons1 : HOKinds A (λ _ → Nat)
+
+{-# EXPORT HOKinds HOKinds #-}

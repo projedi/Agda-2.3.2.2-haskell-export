@@ -30,31 +30,37 @@ assertSort n s = s `leqSort` (Type $ Max [ClosedLevel n])
 
 exportNewtypeFromData :: Int -> Int -> [QName] -> Type -> HS.Name -> String -> TCM [HS.Decl]
 exportNewtypeFromData pars ixs constrs ty name wantedName = do
-   assertType ty
+   paramKinds <- assertType ty
    conpars <- mapM (((\(x,y) -> x + y) <$>) . conArityAndPars) constrs
    let extyvarcount = maximum (pars : conpars) - pars
        extyvars = map (HS.Ident . ('b':) . show) $ take extyvarcount [0..]
    return [
-      HS.DataDecl dummy HS.NewType [] (HS.Ident wantedName) (map HS.UnkindedVar tyvars) [
-         HS.QualConDecl dummy [] [] $
-            HS.ConDecl (HS.Ident wantedName) [
-               HS.UnBangedTy $ HS.TyForall (Just $ map HS.UnkindedVar extyvars) [] $
-                  foldl' HS.TyApp extycons $ map HS.TyVar extyvars
-            ]
-      ] []
+      HS.DataDecl dummy HS.NewType [] (HS.Ident wantedName)
+         (map (uncurry HS.KindedVar) $ zip tyvars paramKinds) [
+            HS.QualConDecl dummy [] [] $
+               HS.ConDecl (HS.Ident wantedName) [
+                  HS.UnBangedTy $ HS.TyForall (Just $ map HS.UnkindedVar extyvars) [] $
+                     foldl' HS.TyApp extycons $ map HS.TyVar extyvars
+               ]
+         ] []
     ]
  where tyvars = map (HS.Ident . ('a':) . show) $ take tyvarcount [0..]
        extycons = HS.TyCon $ HS.UnQual name
        tyvarcount = pars + ixs
-       assertType (El _ (Sort s)) = assertSort 0 s
-       assertType (El _ (Pi (Dom _ _ (El _ (Sort s))) absto)) = do
-          assertSort 0 s
-          assertType $ unAbs absto
-       -- TODO: Actually haskell allows datatypes to have args of kind * -> *, ...
-       assertType (El _ (Pi (Dom _ _ (El _ _)) absto)) = do
-          typeError $ GenericError $ "Exported datatype parameters must be of type Set"
+       assertType (El _ (Sort s)) = do
+         assertSort 0 s
+         return []
+       assertType (El _ (Pi (Dom _ _ t) absto)) = do
+          kind <- assertParamType t
+          (kind :) <$> assertType (unAbs absto)
        assertType (El _ t) = do
           typeError $ GenericError $ "Unexpected type in data declaration: " ++ show t
+       assertParamType (El _ (Sort s)) = do
+          assertSort 0 s
+          return HS.KindStar
+       assertParamType (El _ (Pi (Dom _ _ t) absto)) = do
+          kindFrom <- assertParamType t
+          (HS.KindFn kindFrom) <$> assertParamType (unAbs absto)
 
 {-
 
