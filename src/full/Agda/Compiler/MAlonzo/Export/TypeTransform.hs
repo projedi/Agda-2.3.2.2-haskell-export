@@ -118,7 +118,10 @@ getType vars (Def name args) = do
               GenericError "All types must be exported for function to be exported"
            Just (ExportedData _ _) -> undefined
            Just (Exported x) -> return $ HS.TyCon $ HS.UnQual $ HS.Ident x
-getType _ _ = __IMPOSSIBLE__
+getType vars (Pi (Dom _ _ (El _ t1)) (NoAbs _ (El _ t2))) =
+   HS.TyFun <$> getType vars t1 <*> getType vars t2
+getType _ _ = typeError $ GenericError
+   "Only exported types, variables and arrows can be used as type arguments during export"
 
 toCurry :: Int -> HS.Exp -> Int -> Type -> TCM (HS.Type, HS.Exp)
 toCurry d f vars (El _ x@(Var _ _)) = do
