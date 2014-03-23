@@ -78,7 +78,8 @@ getLocalExport :: Maybe CoinductionKit -> Definition ->
 getLocalExport _ (Defn _ q ty _ _ _ _ compiled d) =
    case exportedHaskell compiled of
     Nothing -> return Nothing
-    Just (Exported wantedName) -> 
+    Just (Exported wantedName) -> do
+       ensureNoCompiledData $ compiledHaskell compiled
        case d of
         Function{} -> do
            checkFunName wantedName
@@ -106,3 +107,6 @@ getLocalExport _ (Defn _ q ty _ _ _ _ compiled d) =
               generateExportData d ty (typeName q) wantedTypeName
                  (map consName cs) wantedConsNames
         _ -> __IMPOSSIBLE__
+ where ensureNoCompiledData Nothing = return ()
+       ensureNoCompiledData (Just _) = typeError $ GenericError
+          "Cannot exported compiled stuff"

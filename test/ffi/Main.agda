@@ -2,6 +2,7 @@ module Main where
 
 import Vec
 import Param
+import Compiled
 
 data Unit : Set where
   unit : Unit

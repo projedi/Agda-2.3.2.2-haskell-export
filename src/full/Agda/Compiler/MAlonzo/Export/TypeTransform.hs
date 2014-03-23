@@ -14,7 +14,8 @@ import Agda.Syntax.Common(Arg(..), Dom(..))
 import Agda.Syntax.Internal( Abs(..), QName, Sort(..), Level(..), PlusLevel(..)
                            , Term(..), Type(..))
 import Agda.TypeChecking.Monad( TCM, Definition(..), Defn(..), CompiledRepresentation(..)
-                              , ExportedHaskell(..), TypeError(..), getConstInfo, typeError)
+                              , ExportedHaskell(..), HaskellRepresentation(..)
+                              , TypeError(..), getConstInfo, typeError)
 import Agda.TypeChecking.Conversion(leqSort)
 
 import Agda.Utils.Impossible
@@ -112,10 +113,13 @@ getType vars (Def name args) = do
    def <- findDef name
    (foldl' HS.TyApp def) <$> mapM (getType vars . unArg) args
  where findDef name = do
-          expInfo <- (exportedHaskell . defCompiledRep) <$> getConstInfo name
-          case expInfo of
-           Nothing -> typeError $
-              GenericError "All types must be exported for function to be exported"
+          compiledRep <- defCompiledRep <$> getConstInfo name
+          case exportedHaskell compiledRep of
+           Nothing ->
+              case compiledHaskell compiledRep of
+               Just (HsType x) -> return $ HS.TyCon $ HS.UnQual $ HS.Ident x
+               _ -> typeError $ GenericError
+                  "All types must be exported(or compiled) for function to be exported"
            Just (ExportedData _ _) -> undefined
            Just (Exported x) -> return $ HS.TyCon $ HS.UnQual $ HS.Ident x
 getType vars (Pi (Dom _ _ (El _ t1)) (NoAbs _ (El _ t2))) =
