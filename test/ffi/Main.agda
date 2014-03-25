@@ -1,8 +1,9 @@
 module Main where
 
-import Vec
+-- import Vec
 import Param
 import Compiled
+import Builtin
 
 data Unit : Set where
   unit : Unit

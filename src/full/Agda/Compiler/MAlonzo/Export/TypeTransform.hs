@@ -9,6 +9,9 @@ import Control.Monad.Trans(liftIO)
 import Data.List(foldl')
 import qualified Language.Haskell.Exts.Syntax as HS
 
+import Agda.Compiler.MAlonzo.Export.Builtins
+   ( BuiltinMap, SupportedBuiltin(..), getBuiltinMap, lookupBuiltin
+   )
 import Agda.Compiler.MAlonzo.Misc(conArityAndPars, dummy, mazCoerce)
 import Agda.Syntax.Common(Arg(..), Dom(..))
 import Agda.Syntax.Internal( Abs(..), QName, Sort(..), Level(..), PlusLevel(..)
@@ -105,79 +108,98 @@ mazDummy :: HS.Exp
 mazDummy = HS.Var (HS.UnQual $ HS.Ident "error") `HS.App` HS.Lit
    (HS.String "dummy was evaluated")
 
-getType :: Int -> Term -> TCM HS.Type
-getType vars (Var i args) = do
+getBuiltinType :: QName -> BuiltinMap -> Maybe HS.Type
+getBuiltinType name m = do
+   b <- lookupBuiltin name m
+   case b of
+    BuiltinChar -> rettype "Char"
+    BuiltinFloat -> rettype "Double"
+    BuiltinInteger -> rettype "Integer"
+    BuiltinIO -> rettype "IO"
+    BuiltinString -> rettype "String"
+    _ -> Nothing
+ where rettype = Just . HS.TyCon . HS.UnQual . HS.Ident
+
+findDef :: BuiltinMap -> QName -> TCM HS.Type
+findDef builtinMap name = do
+   compiledRep <- defCompiledRep <$> getConstInfo name
+   case exportedHaskell compiledRep of
+    Nothing ->
+       case compiledHaskell compiledRep of
+        Just (HsType x) -> return $ HS.TyCon $ HS.UnQual $ HS.Ident x
+        Nothing ->
+           case getBuiltinType name builtinMap of
+            Just t -> return t
+            _ -> typeError $ GenericError
+               "All types must be exported, compiled or builtin for function to be exported"
+        _ -> __IMPOSSIBLE__
+    Just (ExportedData _ _) -> undefined
+    Just (Exported x) -> return $ HS.TyCon $ HS.UnQual $ HS.Ident x
+
+getType :: BuiltinMap -> Int -> Term -> TCM HS.Type
+getType bm vars (Var i args) = do
    let iname = HS.Ident $ "a" ++ show (vars - i - 1)
-   (foldl' HS.TyApp (HS.TyVar iname)) <$> mapM (getType vars . unArg) args
-getType vars (Def name args) = do
-   def <- findDef name
-   (foldl' HS.TyApp def) <$> mapM (getType vars . unArg) args
- where findDef name = do
-          compiledRep <- defCompiledRep <$> getConstInfo name
-          case exportedHaskell compiledRep of
-           Nothing ->
-              case compiledHaskell compiledRep of
-               Just (HsType x) -> return $ HS.TyCon $ HS.UnQual $ HS.Ident x
-               _ -> typeError $ GenericError
-                  "All types must be exported(or compiled) for function to be exported"
-           Just (ExportedData _ _) -> undefined
-           Just (Exported x) -> return $ HS.TyCon $ HS.UnQual $ HS.Ident x
-getType vars (Pi (Dom _ _ (El _ t1)) (NoAbs _ (El _ t2))) =
-   HS.TyFun <$> getType vars t1 <*> getType vars t2
-getType _ _ = typeError $ GenericError
+   (foldl' HS.TyApp (HS.TyVar iname)) <$> mapM (getType bm vars . unArg) args
+getType bm vars (Def name args) = do
+   def <- findDef bm name
+   (foldl' HS.TyApp def) <$> mapM (getType bm vars . unArg) args
+getType bm vars (Pi (Dom _ _ (El _ t1)) (NoAbs _ (El _ t2))) =
+   HS.TyFun <$> getType bm vars t1 <*> getType bm vars t2
+getType _ _ _ = typeError $ GenericError
    "Only exported types, variables and arrows can be used as type arguments during export"
 
-toCurry :: Int -> HS.Exp -> Int -> Type -> TCM (HS.Type, HS.Exp)
-toCurry d f vars (El _ x@(Var _ _)) = do
-   t <- getType vars x
+toCurry :: BuiltinMap -> Int -> HS.Exp -> Int -> Type -> TCM (HS.Type, HS.Exp)
+toCurry bm d f vars (El _ x@(Var _ _)) = do
+   t <- getType bm vars x
    return (t, f)
-toCurry d f vars (El _ x@(Def _ _)) = do
-   t <- getType vars x
+toCurry bm d f vars (El _ x@(Def _ _)) = do
+   t <- getType bm vars x
    return (t, f)
-toCurry d f vars (El _ (Pi (Dom _ _ (El _ (Sort s))) absto)) = do
+toCurry bm d f vars (El _ (Pi (Dom _ _ (El _ (Sort s))) absto)) = do
    assertSort 0 s
    (t, hf) <- case absto of
-               Abs _ to -> toCurry d (f `HS.App` mazDummy) (vars + 1) to
-               NoAbs _ to -> toCurry d (f `HS.App` mazDummy) vars to
+               Abs _ to -> toCurry bm d (f `HS.App` mazDummy) (vars + 1) to
+               NoAbs _ to -> toCurry bm d (f `HS.App` mazDummy) vars to
    let iname = HS.Ident $ "a" ++ show vars
    return (HS.TyForall (Just [HS.UnkindedVar iname]) [] t, hf)
-toCurry d f vars (El _ (Pi (Dom _ _ _) (Abs _ _))) = do
+toCurry bm d f vars (El _ (Pi (Dom _ _ _) (Abs _ _))) = do
    typeError $ GenericError $ "Exported functions must be nondependent"
-toCurry d f vars (El _ (Pi (Dom _ _ t1@(El s _)) (NoAbs _ t2))) = do
+toCurry bm d f vars (El _ (Pi (Dom _ _ t1@(El s _)) (NoAbs _ t2))) = do
    let xname = HS.Ident $ "x" ++ show d
        x = HS.Var $ HS.UnQual xname
-   (t1', x') <- fromCurry (d + 1) x vars t1
-   (t2', f') <- toCurry (d + 1) (f `HS.App` (mazCoerce `HS.App` x')) vars t2
+   (t1', x') <- fromCurry bm (d + 1) x vars t1
+   (t2', f') <- toCurry bm (d + 1) (f `HS.App` (mazCoerce `HS.App` x')) vars t2
    return (t1' `HS.TyFun` t2', HS.Lambda dummy [HS.PVar xname] f')
-toCurry _ _ _ _ = __IMPOSSIBLE__
+toCurry _ _ _ _ _ = __IMPOSSIBLE__
 
-fromCurry :: Int -> HS.Exp -> Int -> Type -> TCM (HS.Type, HS.Exp)
-fromCurry d hf vars (El _ x@(Var _ _)) = do
-   t <- getType vars x
+fromCurry :: BuiltinMap -> Int -> HS.Exp -> Int -> Type -> TCM (HS.Type, HS.Exp)
+fromCurry bm d hf vars (El _ x@(Var _ _)) = do
+   t <- getType bm vars x
    return (t, hf)
-fromCurry d hf vars (El _ x@(Def _ _)) = do
-   t <- getType vars x
+fromCurry bm d hf vars (El _ x@(Def _ _)) = do
+   t <- getType bm vars x
    return (t, hf)
-fromCurry d hf vars (El _ (Pi (Dom _ _ (El _ (Sort s))) absto)) = do
+fromCurry bm d hf vars (El _ (Pi (Dom _ _ (El _ (Sort s))) absto)) = do
    assertSort 0 s
    (t, f) <- case absto of
-              Abs _ to -> fromCurry d (HS.Lambda dummy [HS.PWildCard] hf) (vars + 1) to
-              NoAbs _ to -> fromCurry d (HS.Lambda dummy [HS.PWildCard] hf) vars to
+              Abs _ to -> fromCurry bm d (HS.Lambda dummy [HS.PWildCard] hf) (vars + 1) to
+              NoAbs _ to -> fromCurry bm d (HS.Lambda dummy [HS.PWildCard] hf) vars to
    let iname = HS.Ident $ "a" ++ show vars
    return (HS.TyForall (Just [HS.UnkindedVar iname]) [] t, f)
-fromCurry d hf vars (El _ (Pi (Dom _ _ _) (Abs _ _))) = do
+fromCurry bm d hf vars (El _ (Pi (Dom _ _ _) (Abs _ _))) = do
    typeError $ GenericError $ "Exported functions must be nondependent"
-fromCurry d hf vars (El _ (Pi (Dom _ _ t1@(El s _)) (NoAbs _ t2))) = do
+fromCurry bm d hf vars (El _ (Pi (Dom _ _ t1@(El s _)) (NoAbs _ t2))) = do
    let xname = HS.Ident $ "x" ++ show d
        x = HS.Var $ HS.UnQual xname
-   (t1', x') <- toCurry (d + 1) x vars t1
-   (t2', hf') <- fromCurry (d + 1) (hf `HS.App` x') vars t2
+   (t1', x') <- toCurry bm (d + 1) x vars t1
+   (t2', hf') <- fromCurry bm (d + 1) (hf `HS.App` x') vars t2
    return (t1' `HS.TyFun` t2', HS.Lambda dummy [HS.PVar xname] hf')
-fromCurry _ _ _ _ = __IMPOSSIBLE__
+fromCurry _ _ _ _ _ = __IMPOSSIBLE__
 
 exportFunction :: Type -> HS.Name -> String -> TCM [HS.Decl]
 exportFunction ty name wantedName = do
-   (t, f) <- toCurry 0 (HS.Var $ HS.UnQual name) 0 ty
+   builtinMap <- getBuiltinMap
+   (t, f) <- toCurry builtinMap 0 (HS.Var $ HS.UnQual name) 0 ty
    let fname = HS.Ident wantedName
    return [ HS.TypeSig dummy [fname] t
           , HS.FunBind [

@@ -134,6 +134,7 @@ library
                     Agda.Compiler.MAlonzo.Compiler
                     Agda.Compiler.MAlonzo.Encode
                     Agda.Compiler.MAlonzo.Export
+                    Agda.Compiler.MAlonzo.Export.Builtins
                     Agda.Compiler.MAlonzo.Export.CheckNames
                     Agda.Compiler.MAlonzo.Export.TypeTransform
                     Agda.Compiler.MAlonzo.Misc
