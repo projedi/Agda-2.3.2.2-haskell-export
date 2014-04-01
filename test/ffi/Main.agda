@@ -4,6 +4,7 @@ module Main where
 import Param
 import Compiled
 import Builtin
+import HOKinds
 
 data Unit : Set where
   unit : Unit

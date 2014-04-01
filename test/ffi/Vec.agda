@@ -102,8 +102,3 @@ record Simple (A : Set) : Set where
 vec-map : {A B : Set} {n : Nat} -> (A -> B) -> Vec A n -> Vec B n
 vec-map f [] = []
 vec-map f (x ∷ xs) = f x ∷ vec-map f xs
-
-data HOKinds (A : (Set → Set) → Set → Set) : (Set → Set) → Set where
-  cons1 : HOKinds A (λ _ → Nat)
-
-{-# EXPORT HOKinds HOKinds #-}
