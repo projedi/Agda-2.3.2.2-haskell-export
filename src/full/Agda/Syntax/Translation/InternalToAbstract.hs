@@ -16,7 +16,6 @@
 -}
 module Agda.Syntax.Translation.InternalToAbstract
   ( Reify(..)
-  , ReifyWhen(..)
   , NamedClause
   , reifyPatterns
   ) where
@@ -88,33 +87,20 @@ exprInfo = ExprRange noRange
 underscore :: Expr
 underscore = A.Underscore $ Info.emptyMetaInfo
 
--- Conditional reification to omitt terms that are not shown --------------
-
--- | @ReifyWhen@ is a auxiliary type class to reify 'Arg'.
---
---   @reifyWhen False@ should produce an 'underscore'.
---   This function serves to reify hidden/irrelevant things.
-class Reify i a => ReifyWhen i a where
-    reifyWhen :: Bool -> i -> TCM a
-    reifyWhen _ = reify
-
-instance Reify i Expr => ReifyWhen i Expr where
-  reifyWhen True  i = reify i
-  reifyWhen False t = return underscore
-
-instance ReifyWhen i a => ReifyWhen (Arg i) (Arg a) where
-  reifyWhen b = traverse (reifyWhen b)
-
-instance ReifyWhen i a => ReifyWhen (Named n i) (Named n a) where
-  reifyWhen b = traverse (reifyWhen b)
-
 -- Reification ------------------------------------------------------------
 
 class Reify i a | i -> a where
     reify     ::         i -> TCM a
 
+--   @reifyWhen False@ should produce an 'underscore'.
+--   This function serves to reify hidden/irrelevant things.
+    reifyWhen :: Bool -> i -> TCM a
+    reifyWhen _ = reify
+
 instance Reify Expr Expr where
     reify = return
+    reifyWhen True i = reify i
+    reifyWhen False t = return underscore
 
 instance Reify MetaId Expr where
     reify x@(MetaId n) = liftTCM $ do
@@ -133,6 +119,8 @@ instance Reify MetaId Expr where
                         -> return $ A.QuestionMark $ mi' {metaNumber = Just n}
                 Nothing -> return $ A.Underscore mi'
           ) (return $ A.Underscore mi')
+    reifyWhen True i = reify i
+    reifyWhen False t = return underscore
 
 instance Reify DisplayTerm Expr where
   reify d = case d of
@@ -146,6 +134,8 @@ instance Reify DisplayTerm Expr where
           wapp (e : es) = A.WithApp exprInfo e es
           wapp [] = __IMPOSSIBLE__
       reifyApp (wapp us) vs
+  reifyWhen True i = reify i
+  reifyWhen False t = return underscore
 
 reifyDisplayForm :: QName -> Args -> TCM A.Expr -> TCM A.Expr
 reifyDisplayForm x vs fallback = do
@@ -242,8 +232,14 @@ instance Reify Literal Expr where
   reify l@(LitChar   {}) = return (A.Lit l)
   reify l@(LitQName  {}) = return (A.Lit l)
 
+  reifyWhen True i = reify i
+  reifyWhen False t = return underscore
+
 instance Reify Term Expr where
   reify v = reifyTerm True v
+
+  reifyWhen True i = reify i
+  reifyWhen False t = return underscore
 
 reifyTerm :: Bool -> Term -> TCM Expr
 reifyTerm expandAnonDefs v = do
@@ -415,12 +411,14 @@ nameFirstIfHidden _         es                    = map (fmap unnamed) es
 
 instance Reify i a => Reify (Named n i) (Named n a) where
   reify = traverse reify
+  reifyWhen b = traverse (reifyWhen b)
 
 -- | Skip reification of implicit and irrelevant args if option is off.
-instance (ReifyWhen i a) => Reify (Arg i) (Arg a) where
+instance (Reify i a) => Reify (Arg i) (Arg a) where
   reify (Arg h r i) = Arg h r <$> do flip reifyWhen i =<< condition
     where condition = (return (h /= Hidden) `or2M` showImplicitArguments)
               `and2M` (return (r /= Irrelevant) `or2M` showIrrelevantArguments)
+  reifyWhen b = traverse (reifyWhen b)
 
 instance Reify Elim Expr where
   reify e = case e of
@@ -429,6 +427,9 @@ instance Reify Elim Expr where
     where
       appl :: String -> Arg Expr -> Expr
       appl s v = A.App exprInfo (A.Lit (LitString noRange s)) $ fmap unnamed v
+
+  reifyWhen True i = reify i
+  reifyWhen False t = return underscore
 
 type NamedClause = QNamed I.Clause
 -- data NamedClause = NamedClause QName I.Clause
@@ -658,6 +659,9 @@ instance Reify NamedClause A.Clause where
 instance Reify Type Expr where
     reify (I.El _ t) = reify t
 
+    reifyWhen True i = reify i
+    reifyWhen False t = return underscore
+
 instance Reify Sort Expr where
     reify s =
         do  s <- instantiateFull s
@@ -675,8 +679,14 @@ instance Reify Sort Expr where
                   let app x y = A.App exprInfo x (defaultNamedArg y)
                   return $ A.Var lub `app` e1 `app` e2
 
+    reifyWhen True i = reify i
+    reifyWhen False t = return underscore
+
 instance Reify Level Expr where
   reify l = reify =<< reallyUnLevelView l
+
+  reifyWhen True i = reify i
+  reifyWhen False t = return underscore
 
 instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
   reify (NoAbs x v) = (,) <$> freshName_ x <*> reify v

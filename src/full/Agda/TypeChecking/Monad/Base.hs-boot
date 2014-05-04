@@ -2,6 +2,10 @@
 
 module Agda.TypeChecking.Monad.Base where
 
-data TCMT (m :: * -> *) a
+import Data.IORef(IORef)
+
+data TCState
+data TCEnv
+newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
 
 type TCM = TCMT IO

@@ -41,11 +41,6 @@ import qualified Agda.Utils.Trie as Trie
 isLiterate :: FilePath -> Bool
 isLiterate file = ".lagda" `isSuffixOf` file
 
--- OptDescr is a Functor --------------------------------------------------
-
-deriving instance Functor OptDescr
-deriving instance Functor ArgDescr
-
 type Verbosity = Trie String Int
 
 data CommandLineOptions =
