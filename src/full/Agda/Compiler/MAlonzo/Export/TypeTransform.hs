@@ -141,6 +141,18 @@ getType bm vars (Pi (Dom _ _ (El _ t1)) (NoAbs _ (El _ t2))) =
 getType _ _ _ = typeError $ GenericError
    "Only exported types, variables and arrows can be used as type arguments during export"
 
+assertSortIsKind :: Term -> TCM (Maybe HS.Kind)
+assertSortIsKind (Sort s) = do
+   assertSort 0 s
+   return $ Just $ HS.KindStar
+assertSortIsKind (Pi (Dom _ _ (El _ t1)) (NoAbs _ (El _ t2))) = do
+   mk1 <- assertSortIsKind t1
+   mk2 <- assertSortIsKind t2
+   case (mk1, mk2) of
+    (Just k1, Just k2) -> return $ Just $ k1 `HS.KindFn` k2
+    _ -> return Nothing
+assertSortIsKind _ = return Nothing
+
 toCurry :: BuiltinMap -> Int -> HS.Exp -> Int -> Type -> TCM (HS.Type, HS.Exp)
 toCurry bm d f vars (El _ x@(Var _ _)) = do
    t <- getType bm vars x
@@ -148,21 +160,22 @@ toCurry bm d f vars (El _ x@(Var _ _)) = do
 toCurry bm d f vars (El _ x@(Def _ _)) = do
    t <- getType bm vars x
    return (t, f)
-toCurry bm d f vars (El _ (Pi (Dom _ _ (El _ (Sort s))) absto)) = do
-   assertSort 0 s
-   (t, hf) <- case absto of
-               Abs _ to -> toCurry bm d (f `HS.App` mazDummy) (vars + 1) to
-               NoAbs _ to -> toCurry bm d (f `HS.App` mazDummy) vars to
-   let iname = HS.Ident $ "a" ++ show vars
-   return (HS.TyForall (Just [HS.UnkindedVar iname]) [] t, hf)
-toCurry bm d f vars (El _ (Pi (Dom _ _ _) (Abs _ _))) = do
-   typeError $ GenericError $ "Exported functions must be nondependent"
-toCurry bm d f vars (El _ (Pi (Dom _ _ t1@(El s _)) (NoAbs _ t2))) = do
-   let xname = HS.Ident $ "x" ++ show d
-       x = HS.Var $ HS.UnQual xname
-   (t1', x') <- fromCurry bm (d + 1) x vars t1
-   (t2', f') <- toCurry bm (d + 1) (f `HS.App` (mazCoerce `HS.App` x')) vars t2
-   return (t1' `HS.TyFun` t2', HS.Lambda dummy [HS.PVar xname] f')
+toCurry bm d f vars (El _ (Pi (Dom _ _ t1@(El _ s)) absto)) = do
+   mKind <- assertSortIsKind s
+   case () of
+    _ | (Just kind) <- mKind -> do
+           (t, hf) <- case absto of
+                       Abs _ to -> toCurry bm d (f `HS.App` mazDummy) (vars + 1) to
+                       NoAbs _ to -> toCurry bm d (f `HS.App` mazDummy) vars to
+           let iname = HS.Ident $ "a" ++ show vars
+           return (HS.TyForall (Just [HS.KindedVar iname kind]) [] t, hf)
+      | (NoAbs _ t2) <- absto -> do
+           let xname = HS.Ident $ "x" ++ show d
+               x = HS.Var $ HS.UnQual xname
+           (t1', x') <- fromCurry bm (d + 1) x vars t1
+           (t2', f') <- toCurry bm (d + 1) (f `HS.App` (mazCoerce `HS.App` x')) vars t2
+           return (t1' `HS.TyFun` t2', HS.Lambda dummy [HS.PVar xname] f')
+      | otherwise -> typeError $ GenericError $ "Exported functions must be nondependent"
 toCurry _ _ _ _ _ = __IMPOSSIBLE__
 
 fromCurry :: BuiltinMap -> Int -> HS.Exp -> Int -> Type -> TCM (HS.Type, HS.Exp)
@@ -172,21 +185,23 @@ fromCurry bm d hf vars (El _ x@(Var _ _)) = do
 fromCurry bm d hf vars (El _ x@(Def _ _)) = do
    t <- getType bm vars x
    return (t, hf)
-fromCurry bm d hf vars (El _ (Pi (Dom _ _ (El _ (Sort s))) absto)) = do
-   assertSort 0 s
-   (t, f) <- case absto of
-              Abs _ to -> fromCurry bm d (HS.Lambda dummy [HS.PWildCard] hf) (vars + 1) to
-              NoAbs _ to -> fromCurry bm d (HS.Lambda dummy [HS.PWildCard] hf) vars to
-   let iname = HS.Ident $ "a" ++ show vars
-   return (HS.TyForall (Just [HS.UnkindedVar iname]) [] t, f)
-fromCurry bm d hf vars (El _ (Pi (Dom _ _ _) (Abs _ _))) = do
-   typeError $ GenericError $ "Exported functions must be nondependent"
-fromCurry bm d hf vars (El _ (Pi (Dom _ _ t1@(El s _)) (NoAbs _ t2))) = do
-   let xname = HS.Ident $ "x" ++ show d
-       x = HS.Var $ HS.UnQual xname
-   (t1', x') <- toCurry bm (d + 1) x vars t1
-   (t2', hf') <- fromCurry bm (d + 1) (hf `HS.App` x') vars t2
-   return (t1' `HS.TyFun` t2', HS.Lambda dummy [HS.PVar xname] hf')
+fromCurry bm d hf vars (El _ (Pi (Dom _ _ t1@(El _ s)) absto)) = do
+   mKind <- assertSortIsKind s
+   case () of
+    _ | (Just kind) <- mKind -> do
+           (t, f) <- case absto of
+                      Abs _ to -> fromCurry bm d (HS.Lambda dummy [HS.PWildCard] hf) (vars + 1) to
+                      NoAbs _ to -> fromCurry bm d (HS.Lambda dummy [HS.PWildCard] hf) vars to
+           let iname = HS.Ident $ "a" ++ show vars
+           return (HS.TyForall (Just [HS.KindedVar iname kind]) [] t, f)
+      | (NoAbs _ t2) <- absto -> do
+           let xname = HS.Ident $ "x" ++ show d
+               x = HS.Var $ HS.UnQual xname
+           (t1', x') <- toCurry bm (d + 1) x vars t1
+           (t2', hf') <- fromCurry bm (d + 1) (hf `HS.App` x') vars t2
+           return (t1' `HS.TyFun` t2', HS.Lambda dummy [HS.PVar xname] hf')
+      | otherwise ->
+           typeError $ GenericError $ "Exported functions must be nondependent"
 fromCurry _ _ _ _ _ = __IMPOSSIBLE__
 
 exportFunction :: Type -> HS.Name -> String -> TCM [HS.Decl]

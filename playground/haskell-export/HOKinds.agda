@@ -1,9 +1,9 @@
 module HOKinds where
 
-open import Builtin
+data T : Set where
 
 data HOKinds (A : (Set → Set) → Set → Set) : (Set → Set) → Set where
-  cons1 : HOKinds A (λ _ → Nat)
+  cons1 : HOKinds A (λ _ → T)
 
 {-# EXPORT HOKinds HOKinds #-}
 
