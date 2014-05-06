@@ -807,11 +807,9 @@ instance EmbPrj HaskellRepresentation where
     valu _      = malformed
 
 instance EmbPrj ExportedHaskell where
-  icode (ExportedData a b) = icode2 0 a b
-  icode (Exported a) = icode1 1 a
+  icode (Exported a) = icode1 0 a
   value = vcase valu
-   where valu [0, a, b] = valu2 ExportedData a b
-         valu [1, a] = valu1 Exported a
+   where valu [0, a] = valu1 Exported a
          valu _ = malformed
 
 instance EmbPrj JS.Exp where

@@ -695,9 +695,6 @@ instance ToConcrete RangeAndPragma C.Pragma where
         A.BuiltinPragma b x -> do
           x <- toConcrete x
           return $ C.BuiltinPragma r b x
-        A.ExportDataPragma x hs hcs -> do
-          x <- toConcrete x
-          return $ C.ExportDataPragma r x hs hcs
         A.ExportPragma x hs -> do
           x <- toConcrete x
           return $ C.ExportPragma r x hs

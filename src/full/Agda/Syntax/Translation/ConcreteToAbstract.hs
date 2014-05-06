@@ -1073,11 +1073,6 @@ instance ToAbstract ConstrDecl A.Declaration where
 instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.ImpossiblePragma _) = impossibleTest
     toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
-    toAbstract (C.ExportDataPragma _ x hs hcs) = do
-      e <- toAbstract $ OldQName x
-      case e of
-        A.Def x -> return [ A.ExportDataPragma x hs hcs ]
-        _       -> fail $ "Not a datatype: " ++ show x  -- TODO: error message
     toAbstract (C.ExportPragma _ x hs) = do
       e <- toAbstract $ OldQName x
       y <- case e of

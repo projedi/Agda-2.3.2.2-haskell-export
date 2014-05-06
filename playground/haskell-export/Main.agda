@@ -3,8 +3,9 @@ module Main where
 -- import Vec
 import Param
 import Compiled
-import Builtin
-import HOKinds
+-- fails with warning on GHC 7.8.2. Probably fixed in Agda HEAD.
+-- import Builtin
+-- import HOKinds
 
 data Unit : Set where
   unit : Unit

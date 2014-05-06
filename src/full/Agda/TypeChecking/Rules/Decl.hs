@@ -313,14 +313,6 @@ checkPragma r p =
                               _ -> False
           if isExportable then addExportedHaskell x hs else typeError $ GenericError
              "EXPORT can only be applied to data, record, functions and separate constructors"
-        A.ExportDataPragma x hs hcs -> do
-          def <- getConstInfo x
-          assertSameModule def "EXPORT_DATA"
-          case theDef def of
-            Datatype{dataCons = cs} -> do
-              assertConstructorCount x (length cs) hcs
-              addExportedHaskellData x hs hcs
-            _ -> typeError $ GenericError "EXPORT_DATA can only be applied to data"
         A.CompiledTypePragma x hs -> do
           def <- getConstInfo x
           case theDef def of

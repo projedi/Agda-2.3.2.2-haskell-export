@@ -99,15 +99,6 @@ getLocalExport _ (Defn _ q ty _ _ _ _ compiled d) =
            (Just . (HS.EVar $ HS.UnQual $ HS.Ident wantedName,)) <$>
                generateExport d ty (consName q) wantedName
         _ -> __IMPOSSIBLE__
-    Just (ExportedData wantedTypeName wantedConsNames) -> do
-       checkTypeName wantedTypeName
-       mapM_ checkConsName wantedConsNames
-       case d of
-        Datatype{ dataCons = cs } ->
-           (Just . (HS.EThingAll $ HS.UnQual $ HS.Ident wantedTypeName,)) <$>
-              generateExportData d ty (typeName q) wantedTypeName
-                 (map consName cs) wantedConsNames
-        _ -> __IMPOSSIBLE__
  where ensureNoCompiledData Nothing = return ()
        ensureNoCompiledData (Just _) = typeError $ GenericError
           "Cannot export compiled names"

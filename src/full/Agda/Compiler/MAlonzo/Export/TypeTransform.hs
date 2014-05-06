@@ -1,5 +1,4 @@
 module Agda.Compiler.MAlonzo.Export.TypeTransform( generateExport
-                                                 , generateExportData
                                                  ) where
 
 import Control.Applicative
@@ -128,7 +127,6 @@ findDef builtinMap name = do
             _ -> typeError $ GenericError
                "All types must be exported, compiled or builtin for function to be exported"
         _ -> __IMPOSSIBLE__
-    Just (ExportedData _ _) -> undefined
     Just (Exported x) -> return $ HS.TyCon $ HS.UnQual $ HS.Ident x
 
 getType :: BuiltinMap -> Int -> Term -> TCM HS.Type
@@ -211,9 +209,3 @@ generateExport (Function{}) =
 generateExport (Record{ recPars = pars, recCon = con}) =
    exportNewtypeFromData pars 0 [con]
 generateExport _ = __IMPOSSIBLE__
-
-generateExportData :: Defn -> Type -> HS.Name -> String ->
-   [HS.Name] -> [String] -> TCM [HS.Decl]
-generateExportData d ty typeName wantedTypeName consNames wantedConsNames = do
-   liftIO $ putStrLn "EXPORT_DATA is not yet supported"
-   return []

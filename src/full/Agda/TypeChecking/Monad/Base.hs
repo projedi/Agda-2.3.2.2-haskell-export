@@ -542,7 +542,6 @@ type JSCode      = JS.Exp
 
 data ExportedHaskell
       = Exported String
-      | ExportedData String [String]
       deriving (Typeable, Show)
 
 data HaskellRepresentation

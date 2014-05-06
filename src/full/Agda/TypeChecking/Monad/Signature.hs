@@ -111,17 +111,6 @@ setTerminates q b = modifySignature $ updateDefinition q $ updateTheDef $ setT
     setT def@Function{} = def { funTerminates = Just b }
     setT def            = def
 
-addExportedHaskellData :: QName -> HaskellType -> [String] -> TCM ()
-addExportedHaskellData q hsTy hsArgs = do
-   eh <- (((exportedHaskell . defCompiledRep) <$>) . HMap.lookup q . sigDefinitions)
-      <$> getSignature
-   case eh of
-    Nothing -> __IMPOSSIBLE__
-    Just Nothing -> modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
-    Just (Just x) -> typeError $ GenericError $
-       show q ++ " already has an export declaration attached: " ++ show x
- where addHs crep = crep { exportedHaskell = Just $ ExportedData hsTy hsArgs }
-
 addExportedHaskell :: QName -> String -> TCM ()
 addExportedHaskell q hsName = do
    eh <- (((exportedHaskell . defCompiledRep) <$>) . HMap.lookup q . sigDefinitions)
