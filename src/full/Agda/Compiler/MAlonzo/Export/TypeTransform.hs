@@ -24,11 +24,6 @@ import Agda.TypeChecking.Conversion(leqSort)
 import Agda.Utils.Impossible
 #include "../../../undefined.h"
 
--- TODO: Are termination checks on callbacks required?
--- TODO: Parametrized modules
--- TODO: Make it impossible to have simultaneous(and several)
--- TODO: EXPORT_TYPE, EXPORT_DATA, COMPILED_DATA on one and the same type
-
 assertSort :: Integer -> Sort -> TCM ()
 assertSort n s = s `leqSort` (Type $ Max [ClosedLevel n])
 

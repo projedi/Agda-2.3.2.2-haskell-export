@@ -25,7 +25,7 @@ import Agda.Utils.Impossible
 #include "../../../undefined.h"
 
 -- Currently used: CHAR, FLOAT, INTEGER, STRING
--- LIST and BOOL are essentially similar to EXPORT_DATA
+-- LIST and BOOL are essentially similar to COMPILED_DATA
 -- NATURAL is better to leave alone - it transforms to Int, Integer
 -- which are signed.
 data SupportedBuiltin

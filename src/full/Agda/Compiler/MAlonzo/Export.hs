@@ -110,4 +110,4 @@ getLocalExport _ (Defn _ q ty _ _ _ _ compiled d) =
         _ -> __IMPOSSIBLE__
  where ensureNoCompiledData Nothing = return ()
        ensureNoCompiledData (Just _) = typeError $ GenericError
-          "Cannot exported compiled stuff"
+          "Cannot export compiled names"
