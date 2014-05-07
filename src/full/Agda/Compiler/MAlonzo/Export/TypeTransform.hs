@@ -11,7 +11,7 @@ import qualified Language.Haskell.Exts.Syntax as HS
 import Agda.Compiler.MAlonzo.Export.Builtins
    ( BuiltinMap, SupportedBuiltin(..), getBuiltinMap, lookupBuiltin
    )
-import Agda.Compiler.MAlonzo.Misc(conArityAndPars, dummy, mazCoerce)
+import Agda.Compiler.MAlonzo.Misc(conArityAndPars, curHsMod, dummy, mazCoerce)
 import Agda.Syntax.Common(Arg(..), Dom(..))
 import Agda.Syntax.Internal( Abs(..), QName, Sort(..), Level(..), PlusLevel(..)
                            , Term(..), Type(..))
@@ -28,6 +28,7 @@ assertSort n s = s `leqSort` (Type $ Max [ClosedLevel n])
 
 exportNewtypeFromData :: Int -> Int -> [QName] -> Type -> HS.Name -> String -> TCM [HS.Decl]
 exportNewtypeFromData pars ixs constrs ty name wantedName = do
+   compModName <- curHsMod
    paramKinds <- assertType ty
    conpars <- mapM (((\(x,y) -> x + y) <$>) . conArityAndPars) constrs
    let extyvarcount = maximum (pars : conpars) - pars
@@ -38,12 +39,12 @@ exportNewtypeFromData pars ixs constrs ty name wantedName = do
             HS.QualConDecl dummy [] [] $
                HS.ConDecl (HS.Ident wantedName) [
                   HS.UnBangedTy $ HS.TyForall (Just $ map HS.UnkindedVar extyvars) [] $
-                     foldl' HS.TyApp extycons $ map HS.TyVar extyvars
+                     foldl' HS.TyApp (extycons compModName) $ map HS.TyVar extyvars
                ]
          ] []
     ]
  where tyvars = map (HS.Ident . ('a':) . show) $ take tyvarcount [0..]
-       extycons = HS.TyCon $ HS.UnQual name
+       extycons compModName = HS.TyCon $ HS.Qual compModName name
        tyvarcount = pars + ixs
        -- TODO: assertType and assertParamType look deceptively like some
        -- TODO: Foldable operation
@@ -206,8 +207,9 @@ fromCurry _ _ _ _ _ = __IMPOSSIBLE__
 
 exportFunction :: Type -> HS.Name -> String -> TCM [HS.Decl]
 exportFunction ty name wantedName = do
+   compModName <- curHsMod
    builtinMap <- getBuiltinMap
-   (t, f) <- toCurry builtinMap 0 (HS.Var $ HS.UnQual name) 0 ty
+   (t, f) <- toCurry builtinMap 0 (HS.Var $ HS.Qual compModName name) 0 ty
    let fname = HS.Ident wantedName
    return [ HS.TypeSig dummy [fname] t
           , HS.FunBind [

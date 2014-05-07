@@ -49,7 +49,7 @@ initExportModule = do
    modifyExportModule $ \_ ->
       Just $ HS.Module dummy exportModName [] Nothing Nothing
          [ HS.ImportDecl dummy mazRTE True False Nothing Nothing Nothing
-         , HS.ImportDecl dummy compModName False False Nothing Nothing Nothing
+         , HS.ImportDecl dummy compModName True False Nothing Nothing Nothing
          ] []
 
 addExport :: Maybe CoinductionKit -> Definition -> TCM ()
